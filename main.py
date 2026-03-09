@@ -39,6 +39,7 @@ client = tweepy.Client(
 
 # ── X API 무료 플랜 일 한도 관리 ──────────────────────
 MAX_TWEETS_PER_DAY = int(os.getenv("MAX_TWEETS_PER_DAY", "45"))
+MAX_NON_COUPANG_PER_DAY = int(os.getenv("MAX_NON_COUPANG_PER_DAY", "5"))
 DB_FILE = os.path.join(os.path.dirname(__file__), "data", "deals.db")
 
 
@@ -48,6 +49,18 @@ def _get_today_tweet_count() -> int:
     cursor = conn.cursor()
     cursor.execute(
         "SELECT COUNT(*) FROM sent_deals WHERE DATE(sent_at) = DATE('now', 'localtime')"
+    )
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count
+
+
+def _get_today_non_coupang_count() -> int:
+    """오늘 발행한 비쿠팡 딜 수를 DB에서 조회합니다."""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT COUNT(*) FROM sent_deals WHERE shop_type != 'coupang' AND DATE(sent_at) = DATE('now', 'localtime')"
     )
     count = cursor.fetchone()[0]
     conn.close()
@@ -117,12 +130,34 @@ def run_bot():
     except Exception as e:
         log.error(f"뽐뿌 파싱 오류: {e}")
 
-    # 중복 필터링
+    # 중복 필터링 후 쿠팡 / 비쿠팡 분리
     new_deals = [d for d in all_deals if d['id'] not in sent_deals]
-    log.info(f"발행 대기 중인 새 핫딜: {len(new_deals)}건")
 
-    for i, deal in enumerate(new_deals):
-        shop_type = identify_shop(deal['shop_url'], deal.get('store', ''))
+    coupang_deals = []
+    non_coupang_deals = []
+    for d in new_deals:
+        st = identify_shop(d['shop_url'], d.get('store', ''))
+        d['_shop_type'] = st  # 나중에 재사용
+        if st == 'coupang':
+            coupang_deals.append(d)
+        else:
+            non_coupang_deals.append(d)
+
+    # 비쿠팡: 댓글 많은 순 정렬 후 일 한도 적용
+    non_coupang_deals.sort(key=lambda x: x.get('replies', 0), reverse=True)
+    non_coupang_today = _get_today_non_coupang_count()
+    non_coupang_remaining = max(0, MAX_NON_COUPANG_PER_DAY - non_coupang_today)
+    non_coupang_queue = non_coupang_deals[:non_coupang_remaining]
+
+    log.info(
+        f"발행 대기: 쿠팡 {len(coupang_deals)}건 | "
+        f"비쿠팡 신규 {len(non_coupang_deals)}건 → 오늘 잔여 한도 {non_coupang_remaining}건 중 {len(non_coupang_queue)}건 선택"
+    )
+
+    queue = coupang_deals + non_coupang_queue
+
+    for i, deal in enumerate(queue):
+        shop_type = deal['_shop_type']
         formatted_link = convert_to_affiliate_link(deal['shop_url'], shop_type)
         ai_desc = get_ai_description(deal['title'], deal['price'])
         main_tweet, reply_tweet = generate_tweet_text(deal, formatted_link, ai_desc)
@@ -143,7 +178,7 @@ def run_bot():
 
         # DB에 저장 (트위터 또는 텔레그램 중 하나라도 성공 시)
         if published:
-            save_sent_deal(deal['id'], deal['title'], deal['price'], deal['replies'])
+            save_sent_deal(deal['id'], deal['title'], deal['price'], deal['replies'], shop_type)
 
         # 섀도우밴 방지 랜덤 딜레이
         time.sleep(random.randint(15, 30))

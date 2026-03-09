@@ -45,9 +45,15 @@ def init_db():
             title TEXT,
             price TEXT,
             replies INTEGER,
+            shop_type TEXT DEFAULT 'unknown',
             sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    # 기존 DB에 shop_type 컬럼이 없으면 추가 (무중단 마이그레이션)
+    try:
+        cursor.execute("ALTER TABLE sent_deals ADD COLUMN shop_type TEXT DEFAULT 'unknown'")
+    except sqlite3.OperationalError:
+        pass  # 이미 존재하면 무시
     conn.commit()
     conn.close()
 
@@ -61,12 +67,12 @@ def load_sent_deals():
     return [row[0] for row in rows]
 
 
-def save_sent_deal(deal_id, title, price, replies):
+def save_sent_deal(deal_id, title, price, replies, shop_type="unknown"):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT OR IGNORE INTO sent_deals (id, title, price, replies) VALUES (?, ?, ?, ?)",
-        (str(deal_id), title, price, replies)
+        "INSERT OR IGNORE INTO sent_deals (id, title, price, replies, shop_type) VALUES (?, ?, ?, ?, ?)",
+        (str(deal_id), title, price, replies, shop_type)
     )
     conn.commit()
     conn.close()
