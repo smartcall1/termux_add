@@ -194,7 +194,7 @@ def _generate_coupang_link(product_url):
 
     try:
         resp = _req.get(
-            f"https://affiliate-api.coupang.com{REQUEST_PATH}",
+            f"https://api-gateway.coupang.com{REQUEST_PATH}",
             params={"coupangUrls": actual_url},
             headers={"Authorization": authorization},
             timeout=8
