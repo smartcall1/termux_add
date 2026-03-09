@@ -92,6 +92,20 @@ def fetch_ppomppu_deals() -> list:
                     # 가격 (제목에서 추출 시도)
                     price = _extract_price_from_title(title)
 
+                    # 썸네일 이미지 추출 (td.photo_img 또는 img 태그)
+                    thumb_tag = row.select_one("td.photo_img img, img.thumb_border, img")
+                    thumbnail_url = ""
+                    if thumb_tag and thumb_tag.get("src"):
+                        thumbnail_url = thumb_tag.get("src")
+                        if thumbnail_url.startswith("//"):
+                            thumbnail_url = "https:" + thumbnail_url
+                        elif thumbnail_url.startswith("/"):
+                            thumbnail_url = "https://www.ppomppu.co.kr" + thumbnail_url
+                        
+                        # 아이콘성 이미지 제외 (작은 사이즈)
+                        if "v_size" in thumbnail_url or "s_size" in thumbnail_url:
+                            pass # 우선은 가져옴
+
                     is_hot = recomm >= board["min_recomm"] and reply_count >= board["min_replies"]
                     is_coupang = "쿠팡" in (title or "")
                     
@@ -104,6 +118,7 @@ def fetch_ppomppu_deals() -> list:
                             "site": board["name"],
                             "shop_url": href,  # 뽐뿌 게시글 자체 링크
                             "algumon_url": href,
+                            "thumbnail_url": thumbnail_url,
                         })
                 except Exception:
                     continue
@@ -136,6 +151,8 @@ def _extract_price_from_title(title: str) -> str:
 if __name__ == "__main__":
     deals = fetch_ppomppu_deals()
     print(f"뽐뿌 파싱 결과: {len(deals)}건")
-    for d in deals[:5]:
-        print(f"  [{d['site']}] {d['title']} / {d['price']} / 댓글 {d['replies']}개")
+    for d in deals[:10]:
+        print(f"  [{d['site']}] {d['title']} / {d['price']} / 댓글 {d['replies']}개 | 🖼 {bool(d['thumbnail_url'])}")
         print(f"  링크: {d['shop_url']}")
+        if d['thumbnail_url']:
+             print(f"  이미지: {d['thumbnail_url'][:60]}...")

@@ -200,14 +200,28 @@ def _generate_coupang_link(product_url):
             timeout=8
         )
         data = resp.json()
-        landing_url = data.get("data", {}).get("landingUrl")
+        
+        # 디버깅: API 응답 전체 출력
+        if data.get("rCode") != "0":
+            print(f"[쿠팡 API 응답 오류] rCode: {data.get('rCode')}, rMessage: {data.get('rMessage')}")
+            
+        # 쿠팡 API 응답 구조: data 필드가 리스트인 경우 대응
+        res_data = data.get("data")
+        landing_url = None
+        if isinstance(res_data, list) and len(res_data) > 0:
+            landing_url = res_data[0].get("landingUrl")
+        elif isinstance(res_data, dict):
+            landing_url = res_data.get("landingUrl")
+        
         if landing_url:
             return landing_url
     except Exception as e:
         print(f"[쿠팡 파트너스 API 에러] {e}")
 
-    # 폴백: af_id 기반 간이 링크
-    return f"https://link.coupang.com/a/{af_id}?url={actual_url}"
+    # 폴백: af_id 기반 간이 링크 (URL 인코딩 필수)
+    import urllib.parse
+    encoded_url = urllib.parse.quote(actual_url)
+    return f"https://link.coupang.com/a/{af_id}?url={encoded_url}"
 
 
 def convert_to_affiliate_link(url, shop_type):

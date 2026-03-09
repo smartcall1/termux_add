@@ -95,6 +95,21 @@ def fetch_eomisae_deals(min_replies: int = 5) -> list:
                 i += 1
                 continue
 
+            # 썸네일 이미지 추출 시도
+            thumbnail_url = ""
+            try:
+                # 어미새는 보통 tr 내부에 별도 td나 div로 썸네일이 있음. 
+                # 여기선 tr 내부의 img 태그를 찾아봄
+                parent_row = a.find_parent("tr")
+                if parent_row:
+                    img_tag = parent_row.select_one("img")
+                    if img_tag and img_tag.get("src"):
+                        thumbnail_url = img_tag.get("src")
+                        if not thumbnail_url.startswith("http"):
+                            thumbnail_url = "https://eomisae.co.kr" + thumbnail_url
+            except Exception:
+                pass
+
             deal_id = f"eomisae_{post_id}"
             full_url = f"https://eomisae.co.kr{href}"
 
@@ -106,7 +121,7 @@ def fetch_eomisae_deals(min_replies: int = 5) -> list:
                 "site": "어미새",
                 "store": "",
                 "shop_url": full_url,
-                "thumbnail_url": "",
+                "thumbnail_url": thumbnail_url,
                 "algumon_url": full_url,
             })
 
@@ -128,6 +143,8 @@ if __name__ == "__main__":
     print(f"전체 파싱: {len(found)}개\n" + "-" * 50)
     for d in found:
         status = "🆕" if d["id"] not in sent else "✅"
-        print(f"{status} [💬{d['replies']}] {d['title'][:55]}")
+        print(f"{status} [💬{d['replies']}] {d['title'][:55]} | 🖼 {bool(d['thumbnail_url'])}")
+        if d['thumbnail_url']:
+            print(f"   🖼 {d['thumbnail_url'][:60]}...")
         print(f"   🔗 {d['shop_url']}")
         print()
