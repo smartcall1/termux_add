@@ -65,7 +65,7 @@ def send_message(text: str, photo_url: str = None) -> bool:
         return False
 
 
-def format_telegram_message(deal: dict, converted_link: str, ai_desc: str = "") -> str:
+def format_telegram_message(deal: dict, converted_link: str, ai_desc: str = "", shop_type: str = "other") -> str:
     """
     텔레그램용 HTML 포맷 메시지 생성.
     트위터보다 긴 텍스트가 허용되므로 더 풍부한 정보 제공.
@@ -77,13 +77,16 @@ def format_telegram_message(deal: dict, converted_link: str, ai_desc: str = "") 
 
     desc_line = f"\n💬 {ai_desc}\n" if ai_desc else ""
 
+    # 쿠팡(제휴) 딜만 광고 고지 문구 추가
+    affiliate_notice = "\n<i>#광고 제휴 링크를 통한 구매 시 수수료가 발생합니다.</i>" if shop_type == 'coupang' else ""
+
     msg = (
         f"<b>🔥 핫딜 알림</b>\n\n"
         f"<b>{title}</b>\n"
         f"💰 {price}{desc_line}\n"
         f"💬 커뮤니티 반응: {replies}개\n"
         f"🏪 출처: {site}\n\n"
-        f"👉 <a href='{converted_link}'>탑승링크 바로가기</a>\n\n"
-        f"<i>#광고 제휴 링크를 통한 구매 시 수수료가 발생합니다.</i>"
+        f"👉 <a href='{converted_link}'>탑승링크 바로가기</a>"
+        f"{affiliate_notice}"
     )
     return msg

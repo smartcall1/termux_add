@@ -235,16 +235,19 @@ def convert_to_affiliate_link(url, shop_type):
         
     return url # 변환할 수 없는 몰은 원본 링크 유지
 
-def generate_tweet_text(deal_info, converted_link, ai_desc=""):
+def generate_tweet_text(deal_info, converted_link, ai_desc="", shop_type=None):
     """
     봇 페르소나 (지갑털이범 / 호들갑 요정) 에 맞춰 트윗 본문을 생성합니다.
-    ai_desc: 이미 생성된 Gemini 설명 (hotdeal_bot.py에서 전달, 중복 호출 방지)
+    ai_desc: 이미 생성된 Gemini 설명 (main.py에서 전달, 중복 호출 방지)
+    shop_type: 이미 판별된 쇼핑몰 타입 (None이면 내부에서 판별)
     """
     title = deal_info.get('title', '핫딜 정보')
     price = deal_info.get('price', '')
-    shop_type = identify_shop(deal_info.get('shop_url', ''), deal_info.get('store', ''))
+    if shop_type is None:
+        shop_type = identify_shop(deal_info.get('shop_url', ''), deal_info.get('store', ''))
 
-    disclaimer_tag = "#광고"
+    is_affiliate = shop_type == 'coupang'
+    disclaimer_tag = "#광고 " if is_affiliate else ""
 
     intro_candidates = [
         "🚨 미쳤다 이거 당장 타!!!",
@@ -261,8 +264,7 @@ def generate_tweet_text(deal_info, converted_link, ai_desc=""):
     intro = random.choice(intro_candidates)
 
     desc_section = f"\n📝 {ai_desc}\n" if ai_desc else ""
-    
-    # 3. 플랫폼 태그
+
     shop_tags = {
         'coupang': '#쿠팡핫딜',
         'aliexpress': '#알리직구',
@@ -271,13 +273,14 @@ def generate_tweet_text(deal_info, converted_link, ai_desc=""):
         'other': '#역대급특가'
     }
     shop_tag = shop_tags.get(shop_type, shop_tags['other'])
-    
-    # 최총 트윗 본문 포맷
-    tweet_text = f"{disclaimer_tag} {intro}\n\n[{shop_type.upper()}] {title}\n💰 {price}{desc_section}\n\n👉 탑승링크:\n{converted_link}\n\n{shop_tag}"
-    
-    
-    # 스레드용 상세 공정위 문구 리턴
-    reply_text = f"본 트윗의 링크를 통해 득템하시면, 저에게도 커피값 수준의 제휴 수수료가 떨어집니다! ☕\n덕분에 폰 요금 내면서 더 쩌는 핫딜 물어올게요 🫡 \n(수수료는 판매자가 냅니다, 여러분 결제액은 100% 동일!)"
+
+    tweet_text = f"{disclaimer_tag}{intro}\n\n[{shop_type.upper()}] {title}\n💰 {price}{desc_section}\n\n👉 탑승링크:\n{converted_link}\n\n{shop_tag}"
+
+    # 쿠팡(제휴) 딜만 공정위 답글 달기, 비쿠팡은 None
+    if is_affiliate:
+        reply_text = "본 트윗의 링크를 통해 득템하시면, 저에게도 커피값 수준의 제휴 수수료가 떨어집니다! ☕\n덕분에 폰 요금 내면서 더 쩌는 핫딜 물어올게요 🫡 \n(수수료는 판매자가 냅니다, 여러분 결제액은 100% 동일!)"
+    else:
+        reply_text = None
 
     return tweet_text, reply_text
 

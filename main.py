@@ -67,13 +67,14 @@ def _get_today_non_coupang_count() -> int:
     return count
 
 
-def _publish_to_twitter(deal: dict, main_tweet: str, reply_tweet: str) -> bool:
-    """트위터에 메인 트윗 + 공정위 답글을 발행합니다."""
+def _publish_to_twitter(deal: dict, main_tweet: str, reply_tweet: str | None) -> bool:
+    """트위터에 메인 트윗 발행. reply_tweet이 있으면(쿠팡 제휴) 공정위 답글도 달기."""
     try:
         response = client.create_tweet(text=main_tweet)
         tweet_id = response.data['id']
         if tweet_id:
-            client.create_tweet(text=reply_tweet, in_reply_to_tweet_id=tweet_id)
+            if reply_tweet:
+                client.create_tweet(text=reply_tweet, in_reply_to_tweet_id=tweet_id)
             log.info(f"[트위터] 발행 성공 ID={tweet_id} | {deal['title'][:30]}")
             return True
     except tweepy.errors.TooManyRequests:
@@ -84,11 +85,11 @@ def _publish_to_twitter(deal: dict, main_tweet: str, reply_tweet: str) -> bool:
     return False
 
 
-def _publish_to_telegram(deal: dict, converted_link: str, ai_desc: str) -> bool:
+def _publish_to_telegram(deal: dict, converted_link: str, ai_desc: str, shop_type: str = "other") -> bool:
     """텔레그램 채널에 핫딜을 발행합니다."""
     if not tg_ok():
         return False
-    msg = format_telegram_message(deal, converted_link, ai_desc)
+    msg = format_telegram_message(deal, converted_link, ai_desc, shop_type=shop_type)
     ok = tg_send(msg)
     if ok:
         log.info(f"[텔레그램] 발행 성공 | {deal['title'][:30]}")
@@ -168,7 +169,7 @@ def run_bot():
         shop_type = deal['_shop_type']
         formatted_link = convert_to_affiliate_link(deal['shop_url'], shop_type)
         ai_desc = get_ai_description(deal['title'], deal['price'])
-        main_tweet, reply_tweet = generate_tweet_text(deal, formatted_link, ai_desc)
+        main_tweet, reply_tweet = generate_tweet_text(deal, formatted_link, ai_desc, shop_type=shop_type)
 
         published = False
 
@@ -180,7 +181,7 @@ def run_bot():
                 published = True
 
         # ── 텔레그램 발행 (항상, 한도 무관) ──
-        tg_published = _publish_to_telegram(deal, formatted_link, ai_desc)
+        tg_published = _publish_to_telegram(deal, formatted_link, ai_desc, shop_type=shop_type)
         if tg_published:
             published = True
 
