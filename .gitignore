@@ -1,0 +1,26 @@
+# 🐍 Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# 📊 Data & Databases
+data/*.db
+data/*.json
+
+# 📝 Logs & Temporary files
+*.log
+logs/
+!logs/.gitkeep
+*.html
+.pytest_cache/
+
+# 📱 OS specific
+.DS_Store
+Thumbs.db
+
+# 📚 Documentation (Excluded by user request)
+API_Setup_Guide.md
+mobile_setup_guide.md
+twitter_api_guide.md
