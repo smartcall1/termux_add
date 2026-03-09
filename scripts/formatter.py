@@ -108,6 +108,27 @@ def _resolve_algumon_to_coupang(algumon_url: str) -> str | None:
     return None
 
 
+def extract_coupang_from_post(post_url: str) -> str | None:
+    """
+    어미새/뽐뿌 게시글 URL을 직접 크롤링해 본문 내 쿠팡 상품 URL을 추출합니다.
+    우선순위: /vp/products/ > link.coupang.com > 기타 coupang.com
+    """
+    try:
+        r = _req.get(post_url, headers=_SCRAPE_HEADERS, timeout=10)
+        r.encoding = r.apparent_encoding  # 뽐뿌 EUC-KR 대응
+        for pattern in [
+            r"https://www\.coupang\.com/vp/products/[^\s\"'<>&]+",
+            r"https://link\.coupang\.com/[^\s\"'<>&]+",
+            r"https://[a-z]+\.coupang\.com/[^\s\"'<>&]+",
+        ]:
+            found = re.findall(pattern, r.text)
+            if found:
+                return min(found, key=len)
+    except Exception as e:
+        print(f"[게시글 쿠팡 링크 추출 에러] {post_url[:60]} | {e}")
+    return None
+
+
 def identify_shop(url, store=""):
     """
     URL 또는 storeName 필드로 어떤 쇼핑몰인지 식별합니다.
@@ -217,7 +238,7 @@ def convert_to_affiliate_link(url, shop_type):
 def generate_tweet_text(deal_info, converted_link, ai_desc=""):
     """
     봇 페르소나 (지갑털이범 / 호들갑 요정) 에 맞춰 트윗 본문을 생성합니다.
-    ai_desc: 이미 생성된 Gemini 설명 (main.py에서 전달, 중복 호출 방지)
+    ai_desc: 이미 생성된 Gemini 설명 (hotdeal_bot.py에서 전달, 중복 호출 방지)
     """
     title = deal_info.get('title', '핫딜 정보')
     price = deal_info.get('price', '')

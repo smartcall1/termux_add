@@ -1,7 +1,7 @@
 from scripts.algumon_parser import fetch_algumon_deals, load_sent_deals, save_sent_deal, init_db
 from scripts.eomisae_parser import fetch_eomisae_deals
 from scripts.ppomppu_parser import fetch_ppomppu_deals
-from scripts.formatter import identify_shop, convert_to_affiliate_link, generate_tweet_text, get_ai_description
+from scripts.formatter import identify_shop, convert_to_affiliate_link, generate_tweet_text, get_ai_description, extract_coupang_from_post
 from scripts.telegram_publisher import send_message as tg_send, format_telegram_message, is_configured as tg_ok
 import tweepy
 import os
@@ -136,6 +136,14 @@ def run_bot():
     coupang_deals = []
     non_coupang_deals = []
     for d in new_deals:
+        # 어미새/뽐뿌는 게시글 URL → 본문에서 쿠팡 링크 추출 시도
+        if d.get('site', '') in ('어미새', '뽐뿌(국내)', '뽐뿌(해외)'):
+            extracted = extract_coupang_from_post(d['shop_url'])
+            if extracted:
+                log.info(f"[쿠팡 링크 추출] {d['title'][:30]} → {extracted[:60]}")
+                d['shop_url'] = extracted
+                d['store'] = '쿠팡'
+
         st = identify_shop(d['shop_url'], d.get('store', ''))
         d['_shop_type'] = st  # 나중에 재사용
         if st == 'coupang':

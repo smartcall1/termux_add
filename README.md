@@ -13,7 +13,7 @@
 1. 저장소 클론: `git clone https://github.com/smartcall1/termux_add.git`
 2. 패키지 설치: `pip install -r requirements.txt`
 3. 설정 파일 생성: `.env.template` 파일을 복사하여 `.env`를 만들고 API 키를 입력하세요.
-4. 실행: `python main.py`
+4. 실행: `python hotdeal_bot.py`
 
 ## ⚖️ 라이선스
 MIT License
