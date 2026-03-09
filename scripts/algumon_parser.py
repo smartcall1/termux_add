@@ -123,7 +123,8 @@ def _parse_one_feed(url: str, min_comments: int, headers: dict) -> list:
                     continue
                 if not isinstance(comments, int):
                     comments = 0
-                if comments < min_comments:
+                is_coupang = "쿠팡" in (title or "") or "쿠팡" in (store or "")
+                if not is_coupang and comments < min_comments:
                     continue
 
                 deals.append({

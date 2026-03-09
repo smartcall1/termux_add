@@ -140,6 +140,7 @@
 - [x] **TooManyRequests 예외 처리** — 속도 제한 시 10분 대기 후 재개.
 
 ### 🔜 다음 우선 작업 (Phase 2)
+- [ ] **쿠팡 딜 무조건 발행** — 반응(댓글/추천) 수와 상관없이 쿠팡 딜은 무조건 수집 및 발행 (수익 최적화)
 - [ ] **이미지 첨부** — 상품 이미지 URL 파싱 후 `tweepy.API.media_upload()` 연동 (CTR 3배 기대)
 - [ ] **Threads API 연동** — Meta Threads API (2024 공개) 활용하여 동시 발행
 - [ ] **알리 딥링크 API** — 파라미터 방식 → AliExpress Portals API 정식 호출로 전환

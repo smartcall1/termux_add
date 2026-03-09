@@ -28,7 +28,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("hotdeal_bot")
 
-# ── 트위터 API 설정 ────────────────────────────────────
+# ── 트위터 API v2 설정 (텍스트 발행용) ──────────────────
 client = tweepy.Client(
     bearer_token=os.getenv("X_BEARER_TOKEN"),
     consumer_key=os.getenv("X_CONSUMER_KEY"),
@@ -36,6 +36,15 @@ client = tweepy.Client(
     access_token=os.getenv("X_ACCESS_TOKEN"),
     access_token_secret=os.getenv("X_ACCESS_SECRET")
 )
+
+# ── 트위터 API v1.1 설정 (이미지 업로드용) ──────────────
+auth = tweepy.OAuth1UserHandler(
+    os.getenv("X_CONSUMER_KEY"),
+    os.getenv("X_CONSUMER_SECRET"),
+    os.getenv("X_ACCESS_TOKEN"),
+    os.getenv("X_ACCESS_SECRET")
+)
+api_v1 = tweepy.API(auth)
 
 # ── X API 무료 플랜 일 한도 관리 ──────────────────────
 MAX_TWEETS_PER_DAY = int(os.getenv("MAX_TWEETS_PER_DAY", "45"))
@@ -68,10 +77,33 @@ def _get_today_non_coupang_count() -> int:
 
 
 def _publish_to_twitter(deal: dict, main_tweet: str, reply_tweet: str | None) -> bool:
-    """트위터에 메인 트윗 발행. reply_tweet이 있으면(쿠팡 제휴) 공정위 답글도 달기."""
+    """트위터에 메인 트윗 발행. 이미지가 있으면 첨부."""
     try:
-        response = client.create_tweet(text=main_tweet)
+        media_ids = []
+        image_url = deal.get('thumbnail_url')
+        
+        # 1. 이미지 업로드 (v1.1)
+        if image_url:
+            try:
+                import requests
+                from io import BytesIO
+                
+                img_resp = requests.get(image_url, timeout=10)
+                img_resp.raise_for_status()
+                
+                # 원격 이미지를 BytesIO로 읽어서 바로 업로드 (임시파일 수동 생성 회피)
+                filename = f"temp_{deal['id']}.jpg"
+                with BytesIO(img_resp.content) as image_stream:
+                    media = api_v1.media_upload(filename=filename, file=image_stream)
+                    media_ids = [media.media_id]
+                log.info(f"[트위터] 이미지 업로드 성공 | {image_url[:50]}")
+            except Exception as e:
+                log.error(f"[트위터] 이미지 업로드 실패: {e}")
+
+        # 2. 트윗 발행 (v2)
+        response = client.create_tweet(text=main_tweet, media_ids=media_ids if media_ids else None)
         tweet_id = response.data['id']
+        
         if tweet_id:
             if reply_tweet:
                 client.create_tweet(text=reply_tweet, in_reply_to_tweet_id=tweet_id)
@@ -86,11 +118,16 @@ def _publish_to_twitter(deal: dict, main_tweet: str, reply_tweet: str | None) ->
 
 
 def _publish_to_telegram(deal: dict, converted_link: str, ai_desc: str, shop_type: str = "other") -> bool:
-    """텔레그램 채널에 핫딜을 발행합니다."""
+    """텔레그램 채널에 핫딜을 발행합니다. 이미지가 있으면 함께 발송."""
     if not tg_ok():
         return False
+    
+    photo_url = deal.get('thumbnail_url')
     msg = format_telegram_message(deal, converted_link, ai_desc, shop_type=shop_type)
-    ok = tg_send(msg)
+    
+    # 이미지 URL이 있으면 포토 메시지로, 없으면 텍스트로
+    ok = tg_send(msg, photo_url=photo_url)
+    
     if ok:
         log.info(f"[텔레그램] 발행 성공 | {deal['title'][:30]}")
     return ok

@@ -90,7 +90,8 @@ def fetch_eomisae_deals(min_replies: int = 5) -> list:
                         reply_count = int(rc_text)
                     i += 1  # 댓글 링크는 소비
 
-            if reply_count < min_replies:
+            is_coupang = "쿠팡" in (title or "")
+            if not is_coupang and reply_count < min_replies:
                 i += 1
                 continue
 

@@ -235,6 +235,69 @@ def convert_to_affiliate_link(url, shop_type):
         
     return url # 변환할 수 없는 몰은 원본 링크 유지
 
+# ── 해시태그 최적화 데이터 ────────────────────────────
+HASHTAGS = {
+    "common": ["#핫딜", "#꿀템", "#쇼핑", "#쇼핑스타그램", "#생활비절약", "#알뜰쇼핑"],
+    "categories": {
+        "electronics": ["#IT테크", "#전자기기", "#가전제품", "#애플", "#삼성", "#데스크테리어"],
+        "fashion": ["#패션", "#오오티디", "#데일리룩", "#남친룩", "#여친룩", "#슈스타그램"],
+        "food": ["#식품특가", "#먹스타그램", "#식객", "#자취생꿀템", "#냉장고파먹기"],
+        "living": ["#인테리어", "#자취방꾸미기", "#생활용품", "#꿀팁", "#집꾸미기"]
+    },
+    "time_based": {
+        "morning": ["#출근길", "#굿모닝", "#아침쇼핑"],
+        "lunch": ["#점심시간", "#맛점", "#오늘의식단"],
+        "night": ["#자기전", "#야식", "#새벽반"],
+        "weekend": ["#주말쇼핑", "#나들이", "#집콕"]
+    }
+}
+
+def get_optimized_hashtags(title, shop_type):
+    """제목과 시간대를 분석해 최적의 해시태그 3~4개를 반환합니다."""
+    selected = set()
+    
+    # 1. 쇼핑몰 기반 기본 태그
+    shop_tags = {
+        'coupang': '#쿠팡핫딜',
+        'aliexpress': '#알리직구',
+        'amazon': '#아마존대란',
+        'temu': '#테무특가',
+        'other': '#역대급특가'
+    }
+    selected.add(shop_tags.get(shop_type, shop_tags['other']))
+
+    # 2. 카테고리 분석 (제목 키워드)
+    keywords = {
+        "electronics": ["노트북", "아이폰", "갤럭시", "키보드", "모니터", "패드", "맥북", "충전기"],
+        "fashion": ["운동화", "나이키", "아디다스", "티셔츠", "셔츠", "슬랙스", "패딩", "청바지"],
+        "food": ["식품", "생수", "커피", "간식", "음료", "즉석식품", "햇반", "닭가슴살"],
+        "living": ["세제", "휴지", "물티슈", "청소기", "가구", "침구", "수건"]
+    }
+    for cat, kws in keywords.items():
+        if any(kw in title for kw in kws):
+            selected.update(random.sample(HASHTAGS["categories"][cat], 2))
+            break
+            
+    # 3. 시간대/요일 기반 태그
+    from datetime import datetime
+    now = datetime.now()
+    if now.weekday() >= 5: # 토, 일
+        selected.add(random.choice(HASHTAGS["time_based"]["weekend"]))
+    else:
+        hour = now.hour
+        if 7 <= hour < 10: selected.add(random.choice(HASHTAGS["time_based"]["morning"]))
+        elif 11 <= hour < 14: selected.add(random.choice(HASHTAGS["time_based"]["lunch"]))
+        elif 22 <= hour or hour < 2: selected.add(random.choice(HASHTAGS["time_based"]["night"]))
+
+    # 부족하면 common에서 채움
+    if len(selected) < 4:
+        selected.update(random.sample(HASHTAGS["common"], 4 - len(selected)))
+
+    # 결과물 정렬 (보기 좋게)
+    res = list(selected)
+    random.shuffle(res)
+    return " ".join(res[:4]) # 최대 4개
+
 def generate_tweet_text(deal_info, converted_link, ai_desc="", shop_type=None):
     """
     봇 페르소나 (지갑털이범 / 호들갑 요정) 에 맞춰 트윗 본문을 생성합니다.
@@ -265,16 +328,9 @@ def generate_tweet_text(deal_info, converted_link, ai_desc="", shop_type=None):
 
     desc_section = f"\n📝 {ai_desc}\n" if ai_desc else ""
 
-    shop_tags = {
-        'coupang': '#쿠팡핫딜',
-        'aliexpress': '#알리직구',
-        'amazon': '#아마존대란',
-        'temu': '#테무특가',
-        'other': '#역대급특가'
-    }
-    shop_tag = shop_tags.get(shop_type, shop_tags['other'])
+    optimized_tags = get_optimized_hashtags(title, shop_type)
 
-    tweet_text = f"{disclaimer_tag}{intro}\n\n[{shop_type.upper()}] {title}\n💰 {price}{desc_section}\n\n👉 탑승링크:\n{converted_link}\n\n{shop_tag}"
+    tweet_text = f"{disclaimer_tag}{intro}\n\n[{shop_type.upper()}] {title}\n💰 {price}{desc_section}\n\n👉 탑승링크:\n{converted_link}\n\n{optimized_tags}"
 
     # 쿠팡(제휴) 딜만 공정위 답글 달기, 비쿠팡은 None
     if is_affiliate:

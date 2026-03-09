@@ -92,7 +92,10 @@ def fetch_ppomppu_deals() -> list:
                     # 가격 (제목에서 추출 시도)
                     price = _extract_price_from_title(title)
 
-                    if recomm >= board["min_recomm"] and reply_count >= board["min_replies"]:
+                    is_hot = recomm >= board["min_recomm"] and reply_count >= board["min_replies"]
+                    is_coupang = "쿠팡" in (title or "")
+                    
+                    if is_hot or is_coupang:
                         deals.append({
                             "id": deal_id,
                             "title": title,
