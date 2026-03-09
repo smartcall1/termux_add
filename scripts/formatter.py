@@ -195,7 +195,7 @@ def _generate_coupang_link(product_url):
     try:
         resp = _req.get(
             f"https://api-gateway.coupang.com{REQUEST_PATH}",
-            params={"coupangUrls": actual_url},
+            params={"coupangUrls": [actual_url]},
             headers={"Authorization": authorization},
             timeout=8
         )
@@ -218,10 +218,9 @@ def _generate_coupang_link(product_url):
     except Exception as e:
         print(f"[쿠팡 파트너스 API 에러] {e}")
 
-    # 폴백: af_id 기반 간이 링크 (URL 인코딩 필수)
-    import urllib.parse
-    encoded_url = urllib.parse.quote(actual_url)
-    return f"https://link.coupang.com/a/{af_id}?url={encoded_url}"
+    # 폴백: 원본 쿠팡 URL에 파트너스 추적 파라미터 직접 추가
+    separator = '&' if '?' in actual_url else '?'
+    return f"{actual_url}{separator}partnersCl={af_id}"
 
 
 def convert_to_affiliate_link(url, shop_type):
