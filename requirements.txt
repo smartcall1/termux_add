@@ -4,3 +4,4 @@ tweepy
 python-dotenv
 schedule
 google-generativeai
+fake-useragent
