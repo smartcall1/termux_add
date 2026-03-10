@@ -48,31 +48,31 @@ _AI_STYLES = [
         "name": "호들갑",
         "desc": "과장되게 흥분한 스타일로 써. 예: '미쳤다', '뇌정지옴', 'ㄹㅇ 역대급'. 이모지 2개.",
         "ex_intro": "🤯 뇌정지옴 이게 이 가격?!",
-        "ex_body": "역대급 대란 확정임;; 안 사면 흑우 각",
+        "ex_body": "설탕 대비 칼로리 90% 낮아서 다이어터들 사이에서 이미 난리난 성분임",
     },
     {
         "name": "냉철 팩폭",
         "desc": "조용하지만 팩트로 꽂히는 스타일로 써. 예: '그냥 사라', '이유 없다', '묻고 더블로'. 이모지 1개.",
         "ex_intro": "🎯 그냥 사라. 이유 없다.",
-        "ex_body": "이 가격에 이 품질이면 더 이상 고민할 게 없음",
+        "ex_body": "1kg에 이 가격이면 시중 편의점 대비 절반 수준으로 매일 쓸 수 있음",
     },
     {
         "name": "갓생러",
         "desc": "절약/가성비를 강조하는 갓생 스타일로 써. 예: '이거면 이번달 버팀', '지갑 걱정 끝'. 이모지 1개.",
         "ex_intro": "💰 지갑 걱정 끝났다",
-        "ex_body": "월 생활비 아끼려면 이런 딜 놓치면 안 됨;;",
+        "ex_body": "1+1 구성에 유통기한도 넉넉해서 쟁여두기 딱 좋은 구성",
     },
     {
         "name": "커뮤 밈",
         "desc": "인터넷 커뮤니티 말투로 써. 예: 'ㅇㅈ?ㅇㅈ', '이건 알고가', '개꿀ㅋ', '존버 끝'. 이모지 1개.",
         "ex_intro": "👀 이건 알고가야 함 ㄹㅇ",
-        "ex_body": "커뮤에서 난리난 거 드디어 직접 확인함 개꿀ㅋ",
+        "ex_body": "후기 4.8점에 리뷰 3천개 넘음. 커뮤에서 계속 언급되던 그거 맞음",
     },
     {
         "name": "드라마틱",
         "desc": "짧은 스토리텔링 스타일로 써. 예: '오늘 아침에 발견했는데..', '지인한테만 알려줌'. 이모지 1개.",
         "ex_intro": "🤫 지인한테만 살짝 알려줌",
-        "ex_body": "이거 나만 알고 싶었는데 그냥 퍼뜨린다",
+        "ex_body": "평소에 4만원대였는데 오늘만 반값. 이런 타이밍 두 번 없음",
     },
 ]
 
@@ -99,8 +99,13 @@ def get_ai_description(title, price):
 
 [출력 형식]
 - 첫 줄: 강렬한 후크 문장 (30자 이내, {style["name"]} 스타일 필수)
-- 둘째 줄: 핵심 장점 또는 지금 사야 하는 이유 (40자 이내, 구어체 ~함/~임;;)
+- 둘째 줄: 이 제품의 실제 특징·장점을 1가지 구체적으로 언급하면서 지금 사야 하는 이유를 자연스럽게 (45자 이내, 구어체, ;;로 끝내지 말 것)
 - 딱 2줄만. 번호/따옴표/설명 없이 본문만.
+
+[금지]
+- ;; 또는 ;;로 끝나는 문장
+- 제품 이름만 반복하는 문장
+- 추상적인 감탄사만 있고 정보가 없는 문장
 
 [예시]
 {style["ex_intro"]}
@@ -264,7 +269,10 @@ def _generate_coupang_link(product_url):
     except Exception as e:
         print(f"[쿠팡 파트너스 API 에러] {e}")
 
-    # 폴백: 원본 쿠팡 URL에 파트너스 추적 파라미터 직접 추가
+    # 폴백: 알구몬 URL 해석 실패한 경우 파라미터 붙이지 말고 원본 반환
+    if "algumon.com" in actual_url:
+        return product_url
+    # 그 외: 쿠팡 URL에 파트너스 추적 파라미터 직접 추가
     separator = '&' if '?' in actual_url else '?'
     return f"{actual_url}{separator}partnersCl={af_id}"
 
@@ -280,17 +288,25 @@ def convert_to_affiliate_link(url, shop_type):
         return _generate_coupang_link(url)
         
     elif shop_type == 'aliexpress':
-        # 알리 어필리에이트 URL 파라미터 조합 (간소화)
+        tracking_id = AFFILIATE_CONFIG['aliexpress']['tracking_id']
+        if not tracking_id:
+            return url
         separator = '&' if '?' in url else '?'
-        return f"{url}{separator}aff_short_key={AFFILIATE_CONFIG['aliexpress']['tracking_id']}"
-        
+        return f"{url}{separator}aff_short_key={tracking_id}"
+
     elif shop_type == 'amazon':
+        tag = AFFILIATE_CONFIG['amazon']['tag']
+        if not tag:
+            return url
         separator = '&' if '?' in url else '?'
-        return f"{url}{separator}tag={AFFILIATE_CONFIG['amazon']['tag']}"
-        
+        return f"{url}{separator}tag={tag}"
+
     elif shop_type == 'temu':
+        invite_code = AFFILIATE_CONFIG['temu']['invite_code']
+        if not invite_code:
+            return url
         separator = '&' if '?' in url else '?'
-        return f"{url}{separator}invite_code={AFFILIATE_CONFIG['temu']['invite_code']}"
+        return f"{url}{separator}invite_code={invite_code}"
         
     return url # 변환할 수 없는 몰은 원본 링크 유지
 

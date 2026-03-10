@@ -12,6 +12,7 @@
 4. .env에 TELEGRAM_BOT_TOKEN, TELEGRAM_CHANNEL_ID 추가
 """
 import os
+import html
 import requests
 from dotenv import load_dotenv
 
@@ -85,7 +86,7 @@ def format_telegram_message(deal: dict, converted_link: str, ai_desc: str = "", 
         f"<b>{title}</b>\n"
         f"💰 {price}{desc_line}\n"
         f"🏪 출처: {site}\n\n"
-        f"👉 <a href='{converted_link}'>탑승링크 바로가기</a>"
+        f"👉 <a href='{html.escape(converted_link)}'>탑승링크 바로가기</a>"
         f"{affiliate_notice}"
     )
     return msg
