@@ -205,8 +205,8 @@ def run_bot():
     for i, deal in enumerate(queue):
         shop_type = deal['_shop_type']
         formatted_link = convert_to_affiliate_link(deal['shop_url'], shop_type)
-        ai_desc = get_ai_description(deal['title'], deal['price'])
-        main_tweet, reply_tweet = generate_tweet_text(deal, formatted_link, ai_desc, shop_type=shop_type)
+        ai_intro, ai_body = get_ai_description(deal['title'], deal['price'])
+        main_tweet, reply_tweet = generate_tweet_text(deal, formatted_link, (ai_intro, ai_body), shop_type=shop_type)
 
         published = False
 
@@ -218,7 +218,7 @@ def run_bot():
                 published = True
 
         # ── 텔레그램 발행 (항상, 한도 무관) ──
-        tg_published = _publish_to_telegram(deal, formatted_link, ai_desc, shop_type=shop_type)
+        tg_published = _publish_to_telegram(deal, formatted_link, ai_body or "", shop_type=shop_type)
         if tg_published:
             published = True
 

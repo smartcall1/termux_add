@@ -43,34 +43,80 @@ if GEMINI_API_KEY:
 else:
     model = None
 
+_AI_STYLES = [
+    {
+        "name": "호들갑",
+        "desc": "과장되게 흥분한 스타일로 써. 예: '미쳤다', '뇌정지옴', 'ㄹㅇ 역대급'. 이모지 2개.",
+        "ex_intro": "🤯 뇌정지옴 이게 이 가격?!",
+        "ex_body": "역대급 대란 확정임;; 안 사면 흑우 각",
+    },
+    {
+        "name": "냉철 팩폭",
+        "desc": "조용하지만 팩트로 꽂히는 스타일로 써. 예: '그냥 사라', '이유 없다', '묻고 더블로'. 이모지 1개.",
+        "ex_intro": "🎯 그냥 사라. 이유 없다.",
+        "ex_body": "이 가격에 이 품질이면 더 이상 고민할 게 없음",
+    },
+    {
+        "name": "갓생러",
+        "desc": "절약/가성비를 강조하는 갓생 스타일로 써. 예: '이거면 이번달 버팀', '지갑 걱정 끝'. 이모지 1개.",
+        "ex_intro": "💰 지갑 걱정 끝났다",
+        "ex_body": "월 생활비 아끼려면 이런 딜 놓치면 안 됨;;",
+    },
+    {
+        "name": "커뮤 밈",
+        "desc": "인터넷 커뮤니티 말투로 써. 예: 'ㅇㅈ?ㅇㅈ', '이건 알고가', '개꿀ㅋ', '존버 끝'. 이모지 1개.",
+        "ex_intro": "👀 이건 알고가야 함 ㄹㅇ",
+        "ex_body": "커뮤에서 난리난 거 드디어 직접 확인함 개꿀ㅋ",
+    },
+    {
+        "name": "드라마틱",
+        "desc": "짧은 스토리텔링 스타일로 써. 예: '오늘 아침에 발견했는데..', '지인한테만 알려줌'. 이모지 1개.",
+        "ex_intro": "🤫 지인한테만 살짝 알려줌",
+        "ex_body": "이거 나만 알고 싶었는데 그냥 퍼뜨린다",
+    },
+]
+
 def get_ai_description(title, price):
     """
-    Gemini API를 사용하여 제품명 기반으로 매력적인 설명 피드를 생성합니다.
+    Gemini API로 스타일 페르소나를 랜덤 선택해 인트로+설명 2줄을 생성합니다.
+    반환: (intro_line, desc_line) 튜플. 실패 시 (None, "")
     """
     if not model:
-        return ""
-        
+        return None, ""
+
+    style = random.choice(_AI_STYLES)
+
     prompt = f"""
-    너는 인스타그램/트위터에서 유명한 한국의 '핫딜 지갑털이범'이야. 
-    사용자들이 제품을 사고 싶게 만드는 짧고 강렬한 한 줄 설명을 작성해줘.
-    
-    [규칙]
-    1. 제품명과 가격 정보를 바탕으로 이 제품의 핵심 장점이나 왜 지금 사야 하는지 강조해.
-    2. 구어체(~함, ~임, ~임;;)를 사용하고 이모지를 1~2개 섞어줘.
-    3. 길이는 공백 포함 40자 이내로 아주 짧게 작성해.
-    4. 광고성 멘트보다는 진심으로 추천하는 느낌을 줘.
-    
-    제품명: {title}
-    가격: {price}
-    
-    출력:
-    """
+너는 트위터/X 핫딜 알림 계정 운영자야.
+오늘은 반드시 '{style["name"]}' 스타일로만 써야 해.
+
+[{style["name"]} 스타일 규칙]
+{style["desc"]}
+
+[제품 정보]
+- 상품명: {title}
+- 가격: {price}
+
+[출력 형식]
+- 첫 줄: 강렬한 후크 문장 (30자 이내, {style["name"]} 스타일 필수)
+- 둘째 줄: 핵심 장점 또는 지금 사야 하는 이유 (40자 이내, 구어체 ~함/~임;;)
+- 딱 2줄만. 번호/따옴표/설명 없이 본문만.
+
+[예시]
+{style["ex_intro"]}
+{style["ex_body"]}
+"""
     try:
         response = model.generate_content(prompt)
-        return response.text.strip().replace('"', '')
+        lines = [l.strip() for l in response.text.strip().replace('"', '').splitlines() if l.strip()]
+        if len(lines) >= 2:
+            return lines[0], lines[1]
+        elif len(lines) == 1:
+            return lines[0], ""
+        return None, ""
     except Exception as e:
         print(f"Gemini API 에러: {e}")
-        return ""
+        return None, ""
 
 _SCRAPE_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0 Safari/537.36",
@@ -311,10 +357,23 @@ def get_optimized_hashtags(title, shop_type):
     random.shuffle(res)
     return " ".join(res[:4]) # 최대 4개
 
+_FALLBACK_INTROS = [
+    "🚨 미쳤다 이거 당장 타!!!",
+    "💸 하.. 내 지갑 또 털리네.",
+    "🔥 이거 안 사면 흑우입니다;;",
+    "🤯 이게 이 가격이라고?? 눈 비비고 다시 봄",
+    "💀 지갑 묵념..",
+    "⚡ 역대급 대란 발생.. 지금 당장 확인해야 함",
+    "🛒 장바구니 넣기 전에 뇌정지 한번 옵니다",
+    "🎯 이 가격 다시 없음. 이건 진짜임",
+    "📢 전국민 탑승 시그널 발령합니다.",
+    "🏃‍♂️💨 품절되기 전에 무지성 탑승 기기기기",
+]
+
 def generate_tweet_text(deal_info, converted_link, ai_desc="", shop_type=None):
     """
     봇 페르소나 (지갑털이범 / 호들갑 요정) 에 맞춰 트윗 본문을 생성합니다.
-    ai_desc: 이미 생성된 Gemini 설명 (main.py에서 전달, 중복 호출 방지)
+    ai_desc: (intro_line, desc_line) 튜플 또는 구버전 호환용 문자열
     shop_type: 이미 판별된 쇼핑몰 타입 (None이면 내부에서 판별)
     """
     title = deal_info.get('title', '핫딜 정보')
@@ -325,25 +384,25 @@ def generate_tweet_text(deal_info, converted_link, ai_desc="", shop_type=None):
     is_affiliate = shop_type == 'coupang'
     disclaimer_tag = "#광고 " if is_affiliate else ""
 
-    intro_candidates = [
-        "🚨 미쳤다 이거 당장 타!!!",
-        "💸 하.. 내 지갑 또 털리네.",
-        "🔥 잠시만요 스탑!! 이거 안 사면 흑우입니다;;",
-        "🏃‍♂️💨 품절되기 전에 무지성 탑승 기기기기",
-        "🤯 이게 이 가격이라고?? 눈 비비고 다시 봄",
-        "📢 전국민 탑승 시그널 발령합니다.",
-        "💀 지갑 묵념..",
-        "⚡ 역대급 대란 발생.. 지금 당장 확인해야 함",
-        "🛒 장바구니에 넣기 전에 뇌정지 한번 옵니다",
-        "🎯 이 가격 다시 없음. 이건 진짜임",
-    ]
-    intro = random.choice(intro_candidates)
+    # ai_desc가 튜플이면 새 형식 (intro, desc), 문자열이면 구버전 호환
+    if isinstance(ai_desc, tuple):
+        ai_intro, ai_body = ai_desc
+    else:
+        ai_intro, ai_body = None, ai_desc
 
-    desc_section = f"\n📝 {ai_desc}\n" if ai_desc else ""
+    intro = ai_intro if ai_intro else random.choice(_FALLBACK_INTROS)
+    desc_section = f"\n📝 {ai_body}\n" if ai_body else ""
 
     optimized_tags = get_optimized_hashtags(title, shop_type)
 
-    tweet_text = f"{disclaimer_tag}{intro}\n\n[{shop_type.upper()}] {title}\n💰 {price}{desc_section}\n\n👉 탑승링크:\n{converted_link}\n\n{optimized_tags}"
+    tweet_text = (
+        f"{disclaimer_tag}{intro}\n\n"
+        f"[{shop_type.upper()}] {title}\n"
+        f"💰 {price}"
+        f"{desc_section}\n\n"
+        f"👉 탑승링크:\n{converted_link}\n\n"
+        f"{optimized_tags}"
+    )
 
     # 쿠팡(제휴) 딜만 공정위 답글 달기, 비쿠팡은 None
     if is_affiliate:

@@ -84,7 +84,6 @@ def format_telegram_message(deal: dict, converted_link: str, ai_desc: str = "", 
         f"<b>🔥 핫딜 알림</b>\n\n"
         f"<b>{title}</b>\n"
         f"💰 {price}{desc_line}\n"
-        f"💬 커뮤니티 반응: {replies}개\n"
         f"🏪 출처: {site}\n\n"
         f"👉 <a href='{converted_link}'>탑승링크 바로가기</a>"
         f"{affiliate_notice}"
